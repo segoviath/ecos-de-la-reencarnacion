@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecos de la Reencarnación</title>
+  <style>
+    :root {
+      --bg: #0a1020;
+      --panel: rgba(18, 24, 36, 0.82);
+      --gold: #ffd36a;
+      --cyan: #7ce9ff;
+      --violet: #dca7ff;
+      --red: #ff6b6b;
+      --green: #7ef0b2;
+      --white: #edf7ff;
+      --ink: #090d14;
+      --shadow: rgba(0,0,0,0.5);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #1c2948 0%, #101827 35%, #090d14 100%);
+      color: var(--white);
+      font-family: "Verdana", "Segoe UI", sans-serif;
+      user-select: none;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game-shell {
+      position: relative;
+      width: min(96vw, 1280px);
+      height: min(90vh, 720px);
+      border: 3px solid rgba(124, 233, 255, 0.7);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #08111d;
+      box-shadow: 0 0 24px rgba(124, 233, 255, 0.18), 0 0 70px rgba(28,42,72,0.8);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #0a1020;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #hud {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+      padding: 12px;
+      text-shadow: 2px 2px 0 rgba(0,0,0,0.72);
+    }
+
+    .topbar, .bottombar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel {
+      background: rgba(11,17,27,0.7);
+      border: 2px solid rgba(124,233,255,0.35);
+      box-shadow: inset 0 0 14px rgba(124,233,255,0.1), 0 0 18px rgba(124,233,255,0.12);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--white);
+    }
+
+    .compact {
+      font-size: 11px;
+      opacity: 0.9;
+    }
+
+    #quest-panel {
+      max-width: 400px;
+    }
+
+    #battle-panel {
+      position: absolute;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      width: min(90%, 760px);
+      background: rgba(8, 14, 22, 0.88);
+      border: 3px solid rgba(255, 107, 107, 0.8);
+      border-radius: 12px;
+      box-shadow: 0 0 18px rgba(255, 107, 107, 0.2);
+      padding: 14px;
+      display: none;
+      z-index: 20;
+    }
+
+    .battle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-weight: 700;
+      color: #ffb18b;
+    }
+
+    .hpbar {
+      position: relative;
+      width: 100%;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.5);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .hpbar > div {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: linear-gradient(90deg, var(--green), #57d18e);
+      width: 100%;
+      box-shadow: 0 0 16px rgba(126, 240, 178, 0.6);
+    }
+
+    .battle-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .battle-btn {
+      appearance: none;
+      border: 2px solid rgba(255, 211, 106, 0.9);
+      background: linear-gradient(180deg, rgba(77,110,182,0.8), rgba(22,40,70,0.8));
+      color: var(--white);
+      border-radius: 9px;
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .battle-btn:hover {
+      box-shadow: 0 0 12px rgba(255, 211, 106, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .battle-log {
+      min-height: 60px;
+      max-height: 90px;
+      overflow-y: auto;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 8px 10px;
+      border-radius: 8px;
+      line-height: 1.5;
+      color: #dfeeff;
+      font-size: 12px;
+    }
+
+    #story-modal {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 4, 10, 0.8);
+      z-index: 50;
+    }
+
+    .story-card {
+      width: min(90%, 820px);
+      max-height: 88%;
+      overflow: auto;
+      background: linear-gradient(180deg, rgba(15, 22, 38, 0.97), rgba(8,12,20,0.97));
+      border: 3px solid rgba(255, 211, 106, 0.8);
+      border-radius: 16px;
+      padding: 22px 22px 18px;
+      box-shadow: 0 0 30px rgba(255, 211, 106, 0.15);
+    }
+
+    .story-title {
+      text-align: center;
+      font-weight: 900;
+      color: var(--gold);
+      font-size: clamp(26px, 4vw, 42px);
+      margin: 0 0 10px;
+      letter-spacing: 1px;
+    }
+
+    .story-sub {
+      text-align: center;
+      color: #dcecff;
+      margin-bottom: 18px;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 12px;
+    }
+
+    .box {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .box h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      color: var(--cyan);
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .option {
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.02);
+      color: var(--white);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: 0.18s ease;
+      font-weight: 700;
+    }
+
+    .option small {
+      display: block;
+      color: #c6d9ef;
+      font-size: 11px;
+      margin-top: 4px;
+      line-height: 1.4;
+      font-weight: 400;
+    }
+
+    .option:hover, .option.selected {
+      border-color: rgba(255, 211, 106, 0.8);
+      background: rgba(255, 211, 106, 0.08);
+      box-shadow: 0 0 14px rgba(255, 211, 106, 0.18);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button.primary {
+      appearance: none;
+      border: 2px solid rgba(255, 211, 106, 0.8);
+      background: linear-gradient(180deg, rgba(255,211,106,0.18), rgba(109,71,21,0.5));
+      color: var(--white);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      appearance: none;
+      border: 2px solid rgba(124,233,255,0.8);
+      background: linear-gradient(180deg, rgba(124,233,255,0.14), rgba(28,51,76,0.6));
+      color: var(--white);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .namebox {
+      width: min(100%, 360px);
+      margin: 14px auto 0;
+      display: block;
+      border-radius: 10px;
+      border: 2px solid rgba(124,233,255,0.4);
+      background: rgba(255,255,255,0.02);
+      padding: 12px 14px;
+      color: var(--white);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .storytext {
+      margin-top: 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+      color: #dfeeff;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    @media (max-width: 700px) {
+      .card-grid { grid-template-columns: 1fr; }
+      .battle-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-shell">
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <div id="hud">
+      <div class="topbar">
+        <div id="stats-panel" class="panel"></div>
+        <div class="panel compact">WASD / Flechas: mover · E: interactuar · I: inventario · 1/2/3: combate</div>
+      </div>
+      <div class="bottombar">
+        <div id="quest-panel" class="panel"></div>
+        <div id="zone-panel" class="panel compact"></div>
+      </div>
+    </div>
+
+    <div id="battle-panel">
+      <div class="battle-header">
+        <span id="enemy-name">Enemigo</span>
+        <span id="battle-turn">Turno: Jugador</span>
+      </div>
+      <div class="hpbar"><div id="enemy-hp-fill"></div></div>
+      <div id="battle-log" class="battle-log"></div>
+      <div class="battle-actions">
+        <button class="battle-btn" id="atk-btn">⚔️ Atacar</button>
+        <button class="battle-btn" id="skill-btn">✨ Habilidad</button>
+        <button class="battle-btn" id="guard-btn">🛡️ Defender</button>
+      </div>
+    </div>
+
+    <div id="story-modal">
+      <div class="story-card">
+        <div class="story-title">ECOS DE LA REENCARNACIÓN</div>
+        <div class="story-sub">El Río de las Razas Olvidadas</div>
+
+        <div class="card-grid">
+          <div class="box">
+            <h3>🧬 Raza</h3>
+            <div id="race-list" class="option-grid"></div>
+          </div>
+          <div class="box">
+            <h3>🕊️ Bendición</h3>
+            <div id="blessing-box" class="storytext">
+              Un dios sin forma te observa desde el vacío. No eres un ser cualquiera, ni siquiera todavía tienes una identidad definida.
+              Elige cuál de las razas te llamará al mundo, y con esa elección recibirás una bendición que te acompañará desde el primer paso.
+            </div>
+          </div>
+        </div>
+
+        <input id="player-name" class="namebox" maxlength="18" value="pene" />
+
+        <div class="storytext">
+          Naciste en un mundo que ha perdido el hilo del río sagrado. Tus recuerdos aún no han despertado, pero el mundo te observa.
+          A medida que recorres bosques, ciudades, cavernas y volcanes, crecerás, desarrollarás nuevas habilidades, te unirás a gremios,
+          liberarás a criaturas místicas y finalmente enfrentarás al Rey Dragón que vigila la última llama de la reencarnación.
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="start-game">🌌 Empezar la aventura</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const races = [
+      { name: 'Humano', icon: '👤', color: '#d9ab6c', blessing: 'Bendición de la Adaptación', power: 'Versatilidad', stat: { atk: 14, def: 12, spd: 13, mag: 11 }, desc: 'Equilibrado, adaptable y capaz de evolucionar a lo largo del viaje.' },
+      { name: 'Elfo', icon: '🧝', color: '#9fe9a6', blessing: 'Bendición de la Naturaleza', power: 'Magia elemental', stat: { atk: 12, def: 10, spd: 15, mag: 16 }, desc: 'Ligado a la naturaleza, la curación y el mundo vivo.' },
+      { name: 'Alto Elfo', icon: '🧝‍♀️', color: '#8de1ff', blessing: 'Bendición de la Eternidad', power: 'Magia espiritual', stat: { atk: 11, def: 11, spd: 14, mag: 20 }, desc: 'Adeptos a la sabiduría antigua y la luz espiritual.' },
+      { name: 'Dracónido', icon: '🐉', color: '#ff7952', blessing: 'Bendición del Dragón Ancestral', power: 'Fuego y fuerza', stat: { atk: 19, def: 14, spd: 12, mag: 13 }, desc: 'Fuerza bruta, sangre de dragón y gran resistencia.' },
+      { name: 'Hombre Bestia', icon: '🐺', color: '#b77743', blessing: 'Bendición de la Bestia Salvaje', power: 'Fuerza y agilidad', stat: { atk: 16, def: 11, spd: 20, mag: 8 }, desc: 'Rápido, intuitivo y dominante en la persecución.' },
+      { name: 'Demonio', icon: '👹', color: '#a844d8', blessing: 'Bendición de la Oscuridad Primordial', power: 'Magia oscura', stat: { atk: 15, def: 13, spd: 14, mag: 22 }, desc: 'Lleno de poder arcano y voluntad inquebrantable.' },
+      { name: 'Hada', icon: '🧚', color: '#ffc0d3', blessing: 'Bendición del Bosque Encantado', power: 'Magia espiritual', stat: { atk: 10, def: 9, spd: 18, mag: 18 }, desc: 'Ligera, brillante y muy afinada con la energía mágica.' },
+      { name: 'Enano', icon: '⛏️', color: '#a08b73', blessing: 'Bendición de la Fragua Profunda', power: 'Armas y armaduras', stat: { atk: 17, def: 18, spd: 10, mag: 10 }, desc: 'Fuerte y defensivo, experto en forja y resistencia.' },
+      { name: 'Sirena', icon: '🧜', color: '#59d3d8', blessing: 'Bendición de las Aguas Eternas', power: 'Magia acuática', stat: { atk: 12, def: 12, spd: 15, mag: 17 }, desc: 'Conecta con mares, corrientes y resonancias ocultas.' },
+      { name: 'Vampiro', icon: '🧛', color: '#5c3f7d', blessing: 'Bendición de la Noche Eterna', power: 'Regeneración y sombras', stat: { atk: 16, def: 14, spd: 16, mag: 15 }, desc: 'Viviente nocturno con fuerza, rapidez y regeneración.' },
+      { name: 'Ángel', icon: '👼', color: '#fff0a8', blessing: 'Bendición de la Luz Divina', power: 'Magia sagrada', stat: { atk: 14, def: 16, spd: 13, mag: 19 }, desc: 'Luz, protección, deseo de curar y fortalecer a los demás.' },
+      { name: 'Ogro', icon: '🧌', color: '#4fa45e', blessing: 'Bendición de la Montaña Ancestral', power: 'Fuerza y resistencia', stat: { atk: 20, def: 17, spd: 9, mag: 9 }, desc: 'Puro poder bruto con gran presencia y resistencia.' }
+    ];
+
+    const worldZones = [
+      { name: 'Pueblo de Inicio', x: 140, y: 160, type: 'town', color: '#9e7a5e' },
+      { name: 'Bosque Místico', x: 550, y: 420, type: 'forest', color: '#3da663' },
+      { name: 'Cueva Oscura', x: 350, y: 840, type: 'cave', color: '#545a7d' },
+      { name: 'Desierto Dorado', x: 1060, y: 1300, type: 'desert', color: '#d4be56' },
+      { name: 'Torre de Hielo', x: 1700, y: 620, type: 'ice', color: '#b8e8ff' },
+      { name: 'Volcán del Rey Dragón', x: 2200, y: 2000, type: 'lava', color: '#ff5247' }
+    ];
+
+    const guilds = [
+      { name: 'Gremio del Fuego', x: 170, y: 170, bonus: 'atk', color: '#ff8c42' },
+      { name: 'Gremio de la Sombra', x: 280, y: 150, bonus: 'spd', color: '#a03cff' },
+      { name: 'Gremio Lunar', x: 150, y: 260, bonus: 'mag', color: '#7ec8ff' }
+    ];
+
+    const creatures = [
+      { name: 'Fénix de Fuego', x: 420, y: 330, level: 15 },
+      { name: 'Serpiente de Cristal', x: 910, y: 430, level: 12 },
+      { name: 'Roc de Viento', x: 610, y: 1180, level: 14 },
+      { name: 'Golém de Piedra', x: 1820, y: 1800, level: 16 },
+      { name: 'Espíritu Lunar', x: 1200, y: 600, level: 13 },
+      { name: 'Basilisco', x: 2100, y: 1350, level: 18 },
+      { name: 'Grifo', x: 1560, y: 2100, level: 17 },
+      { name: 'Titán del Bosque', x: 820, y: 2360, level: 19 },
+      { name: 'Rey Dragón', x: 2230, y: 1980, level: 30 }
+    ];
+
+    const state = {
+      mode: 'story',
+      selectedRace: 'Humano',
+      player: null,
+      keys: {},
+      camera: { x: 0, y: 0 },
+      battle: null,
+      questLog: [],
+      currentZone: 'Pueblo de Inicio'
+    };
+
+    function randomRange(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function populateRaceList() {
+      const list = document.getElementById('race-list');
+      list.innerHTML = '';
+      races.forEach(r => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'option' + (state.selectedRace === r.name ? ' selected' : '');
+        btn.innerHTML = `<strong>${r.icon} ${r.name}</strong><small>${r.power}<br>${r.desc}</small>`;
+        btn.addEventListener('click', () => {
+          state.selectedRace = r.name;
+          document.getElementById('blessing-box').textContent = `Bendición recibida: ${r.blessing}. Tu destino se abre con ${r.power}.`;
+          populateRaceList();
+        });
+        list.appendChild(btn);
+      });
+    }
+
+    function startGame() {
+      const chosen = races.find(r => r.name === state.selectedRace);
+      const playerName = document.getElementById('player-name').value.trim() || 'pene';
+
+      state.player = {
+        name: playerName,
+        race: chosen.name,
+        icon: chosen.icon,
+        x: 140,
+        y: 160,
+        hp: 120,
+        maxHp: 120,
+        atk: chosen.stat.atk,
+        def: chosen.stat.def,
+        spd: chosen.stat.spd,
+        mag: chosen.stat.mag,
+        level: 1,
+        exp: 0,
+        gold: 0,
+        blessing: chosen.blessing,
+        guild: null,
+        creatures: [],
+        quests: ['Naciste en el mundo y debes encontrar tu identidad.', 'Explora los ecos del río y ayuda a las razas.', 'Derrota al Rey Dragón para cerrar el ciclo.']
+      };
+
+      state.mode = 'playing';
+      document.getElementById('story-modal').style.display = 'none';
+      state.questLog = [
+        'Has sido llamado por un Dios sin forma.',
+        `Eres ${playerName}, un ${chosen.name}.`,
+        `Tu bendición es ${chosen.blessing}.`,
+        'Debes abrirte paso por el mundo y despertar tus verdaderos dones.'
+      ];
+      updateHUD();
+      requestAnimationFrame(loop);
+    }
+
+    function updateHUD() {
+      const p = state.player;
+      if (!p) return;
+
+      const stats = document.getElementById('stats-panel');
+      stats.innerHTML = `
+        <div class="panel"><strong>${p.icon} ${p.name}</strong><br>${p.race} · Lv ${p.level}</div>
+        <div class="panel">❤️ ${p.hp}/${p.maxHp}</div>
+        <div class="panel">⚔️ ${p.atk}</div>
+        <div class="panel">🛡️ ${p.def}</div>
+        <div class="panel">⚡ ${p.spd}</div>
+        <div class="panel">✨ ${p.mag}</div>
+        <div class="panel">💰 ${p.gold}</div>
+      `;
+
+      const quest = document.getElementById('quest-panel');
+      quest.innerHTML = `<strong>📜 Misión</strong><br>${state.questLog[state.questLog.length - 1]}`;
+
+      const zone = document.getElementById('zone-panel');
+      zone.textContent = `Zona: ${state.currentZone} · Bendición: ${p.blessing}`;
+    }
+
+    function tryInteract() {
+      if (!state.player || state.mode !== 'playing') return;
+
+      for (const g of guilds) {
+        const dx = Math.abs(state.player.x - g.x);
+        const dy = Math.abs(state.player.y - g.y);
+        if (dx < 40 && dy < 40) {
+          if (!state.player.guild) {
+            state.player.guild = g.name;
+            if (g.bonus === 'atk') state.player.atk += 3;
+            if (g.bonus === 'spd') state.player.spd += 3;
+            if (g.bonus === 'mag') state.player.mag += 3;
+            state.questLog.push(`Te uniste al ${g.name}. Tu poder ha crecido.`);
+            updateHUD();
+            return;
+          }
+          state.questLog.push(`Ya formas parte del ${g.name}.`);
+          updateHUD();
+          return;
+        }
+      }
+
+      for (const c of creatures) {
+        const dx = Math.abs(state.player.x - c.x);
+        const dy = Math.abs(state.player.y - c.y);
+        if (dx < 55 && dy < 55) {
+          beginBattle(c);
+          return;
+        }
+      }
+
+      state.questLog.push('No hay nada útil cerca. Sigue explorando.');
+      updateHUD();
+    }
+
+    function beginBattle(enemy) {
+      state.mode = 'battle';
+      state.battle = {
+        enemy,
+        turn: 'player',
+        log: [`¡${enemy.name} aparece!`]
+      };
+
+      document.getElementById('battle-panel').style.display = 'block';
+      const enemyName = document.getElementById('enemy-name');
+      enemyName.textContent = `${enemy.name} · Lv ${enemy.level}`;
+      document.getElementById('battle-turn').textContent = 'Turno: Jugador';
+      updateBattleUI();
+    }
+
+    function updateBattleUI() {
+      const battle = state.battle;
+      if (!battle) return;
+      const hpPct = (battle.enemy.hp ?? 100) / (battle.enemy.maxHp ?? 100) * 100;
+      document.getElementById('enemy-hp-fill').style.width = `${clamp(hpPct, 0, 100)}%`;
+      document.getElementById('battle-log').textContent = battle.log.join('\n');
+    }
+
+    function getEnemyStats(enemy) {
+      const base = 60 + enemy.level * 15;
+      const typeBoost = enemy.name === 'Rey Dragón' ? 55 : 0;
+      return {
+        hp: base + typeBoost,
+        atk: 12 + enemy.level * 2,
+        def: 8 + enemy.level,
+        mag: 8 + enemy.level
+      };
+    }
+
+    function enemyAction() {
+      const battle = state.battle;
+      if (!battle || !state.player) return;
+      const enemy = battle.enemy;
+      const stats = getEnemyStats(enemy);
+      const damage = Math.max(4, stats.atk - state.player.def + randomRange(1, 12));
+      state.player.hp = clamp(state.player.hp - damage, 0, state.player.maxHp);
+      battle.log.push(`${enemy.name} te golpea por ${damage} de daño.`);
+      battle.turn = 'player';
+      if (state.player.hp <= 0) {
+        state.player.hp = 20;
+        state.questLog.push('Has caído, pero regresas con un hilo de vida.');
+      }
+      updateHUD();
+      updateBattleUI();
+      if (state.player.hp <= 0) {
+        document.getElementById('battle-panel').style.display = 'none';
+        state.mode = 'playing';
+        state.battle = null;
+      }
+    }
+
+    function playerAttack(kind) {
+      const battle = state.battle;
+      if (!battle || state.mode !== 'battle') return;
+
+      const enemy = battle.enemy;
+      const stats = getEnemyStats(enemy);
+      const base = kind === 'skill' ? state.player.mag : state.player.atk;
+      const dmg = Math.max(7, base + randomRange(4, 20) - Math.floor(stats.def / 2));
+      enemy.hp = (enemy.hp ?? stats.hp) - dmg;
+      battle.log.push(`${state.player.name} usa ${kind === 'skill' ? 'Habilidad' : 'Ataque'} y hace ${dmg} daño.`);
+
+      if (enemy.hp <= 0) {
+        battle.log.push(`${enemy.name} ha caído.`);
+        resolveVictory(enemy);
+        return;
+      }
+
+      enemyAction();
+    }
+
+    function resolveVictory(enemy) {
+      const p = state.player;
+      p.exp += 35 + enemy.level * 12;
+      p.gold += 25 + enemy.level * 10;
+
+      const levelThreshold = 100 + p.level * 70;
+      if (p.exp >= levelThreshold) {
+        p.level += 1;
+        p.exp = 0;
+        p.maxHp += 18;
+        p.hp = p.maxHp;
+        p.atk += 2;
+        p.def += 2;
+        p.spd += 2;
+        p.mag += 2;
+        state.questLog.push(`¡Subiste a nivel ${p.level}! Tu poder se fortalece.`);
+      }
+
+      if (!p.creatures.includes(enemy.name)) p.creatures.push(enemy.name);
+      if (enemy.name === 'Rey Dragón') {
+        completeEnding();
+      } else {
+        state.questLog.push(`Has derrotado a ${enemy.name}. El río responde a tus pasos.`);
+      }
+
+      state.mode = 'playing';
+      document.getElementById('battle-panel').style.display = 'none';
+      state.battle = null;
+      updateHUD();
+    }
+
+    function completeEnding() {
+      const p = state.player;
+      state.mode = 'done';
+      const title = '🎉 Victoria final';
+      const body = `${p.name} eliminó al Rey Dragón. El ciclo del río se reabre. Las razas recuerdan quiénes son y los ecos renacen en todo el mundo.`;
+      alert(title + '\n\n' + body);
+      state.questLog.push('El Rei Dragón cayó. El mundo vuelve a vivir.');
+      updateHUD();
+    }
+
+    function defendAction() {
+      const battle = state.battle;
+      if (!battle || state.mode !== 'battle') return;
+      const enemyStats = getEnemyStats(battle.enemy);
+      const reduced = Math.max(2, enemyStats.atk - state.player.def - 5);
+      state.player.hp = clamp(state.player.hp - reduced, 0, state.player.maxHp);
+      battle.log.push(`${state.player.name} se defiende y reduce el daño a ${reduced}.`);
+      if (state.player.hp <= 0) {
+        state.player.hp = 20;
+        battle.log.push('Caes, pero despiertas con una última oportunidad.');
+      }
+      updateHUD();
+      updateBattleUI();
+      if (state.player.hp <= 0) {
+        document.getElementById('battle-panel').style.display = 'none';
+        state.mode = 'playing';
+        state.battle = null;
+      }
+    }
+
+    function movePlayer() {
+      if (!state.player || state.mode !== 'playing') return;
+      const speed = 2.5 + state.player.spd * 0.05;
+      let dx = 0, dy = 0;
+      if (state.keys['w'] || state.keys['arrowup']) dy -= 1;
+      if (state.keys['s'] || state.keys['arrowdown']) dy += 1;
+      if (state.keys['a'] || state.keys['arrowleft']) dx -= 1;
+      if (state.keys['d'] || state.keys['arrowright']) dx += 1;
+      if (dx !== 0 || dy !== 0) {
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len; dy /= len;
+        state.player.x += dx * speed;
+        state.player.y += dy * speed;
+      }
+
+      state.player.x = clamp(state.player.x, 0, 3200);
+      state.player.y = clamp(state.player.y, 0, 3200);
+
+      state.camera.x = clamp(state.player.x * 16 - canvas.width / 2, 0, 3200);
+      state.camera.y = clamp(state.player.y * 16 - canvas.height / 2, 0, 3200);
+
+      for (const zone of worldZones) {
+        const dx = Math.abs(state.player.x - zone.x);
+        const dy = Math.abs(state.player.y - zone.y);
+        if (dx < 32 && dy < 32) {
+          state.currentZone = zone.name;
+        }
+      }
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = '#102038';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const camX = state.camera.x;
+      const camY = state.camera.y;
+
+      for (let x = -32; x < canvas.width + 32; x += 32) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = -32; y < canvas.height + 32; y += 32) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      worldZones.forEach(zone => {
+        const sx = zone.x * 16 - camX;
+        const sy = zone.y * 16 - camY;
+        ctx.fillStyle = zone.color + '80';
+        ctx.fillRect(sx - 40, sy - 40, 120, 120);
+        ctx.strokeStyle = '#d7efff';
+        ctx.strokeRect(sx - 40, sy - 40, 120, 120);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Verdana';
+        ctx.fillText(zone.name, sx - 32, sy - 15);
+      });
+
+      guilds.forEach(g => {
+        const sx = g.x * 16 - camX;
+        const sy = g.y * 16 - camY;
+        ctx.fillStyle = g.color;
+        ctx.fillRect(sx - 12, sy - 12, 24, 24);
+      });
+
+      creatures.forEach(c => {
+        const sx = c.x * 16 - camX;
+        const sy = c.y * 16 - camY;
+        ctx.fillStyle = c.name === 'Rey Dragón' ? '#ff2d2d' : '#ffb26b';
+        ctx.fillRect(sx - 8, sy - 8, 16, 16);
+      });
+
+      if (state.player) {
+        const sx = state.player.x * 16 - camX;
+        const sy = state.player.y * 16 - camY;
+        const color = races.find(r => r.name === state.player.race)?.color || '#fff';
+        ctx.fillStyle = color;
+        ctx.fillRect(sx - 10, sy - 10, 20, 20);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(state.player.name, sx - 18, sy - 16);
+      }
+    }
+
+    function loop() {
+      movePlayer();
+      drawBackground();
+      if (state.mode === 'playing') {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      const key = e.key.toLowerCase();
+      if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
+        state.keys[key] = true;
+      }
+      if (state.mode === 'battle') {
+        if (e.key === '1') playerAttack('normal');
+        if (e.key === '2') playerAttack('skill');
+        if (e.key === '3') defendAction();
+      }
+      if (e.key.toLowerCase() === 'e') tryInteract();
+      if (e.key.toLowerCase() === 'i') {
+        if (state.player) {
+          alert(`Inventario: ${state.player.creatures.length} criaturas derrotadas\nGremio: ${state.player.guild || 'sin gremio'}\nBendición: ${state.player.blessing}`);
+        }
+      }
+    });
+
+    document.addEventListener('keyup', e => {
+      const key = e.key.toLowerCase();
+      if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
+        state.keys[key] = false;
+      }
+    });
+
+    document.getElementById('start-game').addEventListener('click', startGame);
+    document.getElementById('atk-btn').addEventListener('click', () => playerAttack('normal'));
+    document.getElementById('skill-btn').addEventListener('click', () => playerAttack('skill'));
+    document.getElementById('guard-btn').addEventListener('click', defendAction);
+
+    populateRaceList();
+    document.getElementById('blessing-box').textContent = `Bendición recibida: ${races.find(r => r.name === state.selectedRace).blessing}. Tu destino se abre con ${races.find(r => r.name === state.selectedRace).power}.`;
+    updateHUD();
+    drawBackground();
+  </script>
+</body>
+</html>
